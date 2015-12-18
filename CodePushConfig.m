@@ -7,7 +7,7 @@
 static CodePushConfig *_currentConfig;
 
 static NSString * const AppVersionConfigKey = @"appVersion";
-static NSString * const BuildVdersionConfigKey = @"buildVersion";
+static NSString * const BuildVersionConfigKey = @"buildVersion";
 static NSString * const DeploymentKeyConfigKey = @"deploymentKey";
 static NSString * const ServerURLConfigKey = @"serverUrl";
 
@@ -25,23 +25,23 @@ static NSString * const ServerURLConfigKey = @"serverUrl";
 {
     self = [super init];
     NSDictionary *infoDictionary = [[NSBundle mainBundle] infoDictionary];
-    
-    NSString *appVersion = [infoDictionary objectForKey:@"CFBundleShortVersionString"];
-    NSString *buildVersion = [infoDictionary objectForKey:(NSString *)kCFBundleVersionKey];
+
+    NSString *appVersion = [infoDictionary objectForKey:(NSString *)kCFBundleVersionKey];
+    NSString *buildVersion = [infoDictionary objectForKey:@"CFBundleShortVersionString"];
     NSString *deploymentKey = [infoDictionary objectForKey:@"CodePushDeploymentKey"];
     NSString *serverURL = [infoDictionary objectForKey:@"CodePushServerURL"];
-    
+
     if (!serverURL) {
         serverURL = @"https://codepush.azurewebsites.net/";
     }
-    
+
     _configDictionary = [[NSMutableDictionary alloc] initWithObjectsAndKeys:
                             appVersion,AppVersionConfigKey,
-                            buildVersion,BuildVdersionConfigKey,
+                            buildVersion,BuildVersionConfigKey,
                             serverURL,ServerURLConfigKey,
                             deploymentKey,DeploymentKeyConfigKey,
                             nil];
-    
+
     return self;
 }
 
@@ -52,7 +52,7 @@ static NSString * const ServerURLConfigKey = @"serverUrl";
 
 - (NSString *)buildVersion
 {
-    return [_configDictionary objectForKey:BuildVdersionConfigKey];
+    return [_configDictionary objectForKey:BuildVersionConfigKey];
 }
 
 - (NSDictionary *)configuration
