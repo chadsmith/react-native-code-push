@@ -38,27 +38,40 @@ public class CodePushPackage {
     }
 
     public String getCodePushPath() {
-        return CodePushUtils.appendPathComponent(getDocumentsDirectory(), CODE_PUSH_FOLDER_PREFIX);
+        String codePushPath = CodePushUtils.appendPathComponent(getDocumentsDirectory(), CODE_PUSH_FOLDER_PREFIX);
+        if (CodePush.isUsingTestConfiguration()) {
+            codePushPath = CodePushUtils.appendPathComponent(codePushPath, "TestPackages");
+        }
+
+        return codePushPath;
     }
 
     public String getStatusFilePath() {
         return CodePushUtils.appendPathComponent(getCodePushPath(), STATUS_FILE);
     }
 
-    public WritableMap getCurrentPackageInfo() throws IOException {
+    public WritableMap getCurrentPackageInfo() {
         String statusFilePath = getStatusFilePath();
         if (!CodePushUtils.fileAtPathExists(statusFilePath)) {
             return new WritableNativeMap();
         }
 
-        return CodePushUtils.getWritableMapFromFile(statusFilePath);
+        try {
+            return CodePushUtils.getWritableMapFromFile(statusFilePath);
+        } catch (IOException e) {
+            throw new CodePushUnknownException("Error getting current package info" , e);
+        }
     }
 
-    public void updateCurrentPackageInfo(ReadableMap packageInfo) throws IOException {
-        CodePushUtils.writeReadableMapToFile(packageInfo, getStatusFilePath());
+    public void updateCurrentPackageInfo(ReadableMap packageInfo) {
+        try {
+            CodePushUtils.writeReadableMapToFile(packageInfo, getStatusFilePath());
+        } catch (IOException e) {
+            throw new CodePushUnknownException("Error updating current package info" , e);
+        }
     }
 
-    public String getCurrentPackageFolderPath() throws IOException {
+    public String getCurrentPackageFolderPath() {
         WritableMap info = getCurrentPackageInfo();
         String packageHash = CodePushUtils.tryGetString(info, CURRENT_PACKAGE_KEY);
         if (packageHash == null) {
@@ -68,7 +81,7 @@ public class CodePushPackage {
         return getPackageFolderPath(packageHash);
     }
 
-    public String getCurrentPackageBundlePath() throws IOException {
+    public String getCurrentPackageBundlePath() {
         String packageFolder = getCurrentPackageFolderPath();
         if (packageFolder == null) {
             return null;
@@ -81,17 +94,17 @@ public class CodePushPackage {
         return CodePushUtils.appendPathComponent(getCodePushPath(), packageHash);
     }
 
-    public String getCurrentPackageHash() throws IOException {
+    public String getCurrentPackageHash() {
         WritableMap info = getCurrentPackageInfo();
         return CodePushUtils.tryGetString(info, CURRENT_PACKAGE_KEY);
     }
 
-    public String getPreviousPackageHash() throws IOException {
+    public String getPreviousPackageHash() {
         WritableMap info = getCurrentPackageInfo();
         return CodePushUtils.tryGetString(info, PREVIOUS_PACKAGE_KEY);
     }
 
-    public WritableMap getCurrentPackage() throws IOException {
+    public WritableMap getCurrentPackage() {
         String folderPath = getCurrentPackageFolderPath();
         if (folderPath == null) {
             return new WritableNativeMap();
@@ -106,7 +119,7 @@ public class CodePushPackage {
         }
     }
 
-    public WritableMap getPackage(String packageHash) throws IOException {
+    public WritableMap getPackage(String packageHash) {
         String folderPath = getPackageFolderPath(packageHash);
         String packageFilePath = CodePushUtils.appendPathComponent(folderPath, PACKAGE_FILE_NAME);
         try {
@@ -180,10 +193,51 @@ public class CodePushPackage {
         updateCurrentPackageInfo(info);
     }
 
-    public void rollbackPackage() throws IOException {
+    public void rollbackPackage() {
         WritableMap info = getCurrentPackageInfo();
+        String currentPackageFolderPath = getCurrentPackageFolderPath();
+        CodePushUtils.deleteDirectoryAtPath(currentPackageFolderPath);
         info.putString(CURRENT_PACKAGE_KEY, CodePushUtils.tryGetString(info, PREVIOUS_PACKAGE_KEY));
         info.putNull(PREVIOUS_PACKAGE_KEY);
         updateCurrentPackageInfo(info);
+    }
+
+    public void downloadAndReplaceCurrentBundle(String remoteBundleUrl) throws IOException {
+        URL downloadUrl;
+        HttpURLConnection connection = null;
+        BufferedInputStream bin = null;
+        FileOutputStream fos = null;
+        BufferedOutputStream bout = null;
+        try {
+            downloadUrl = new URL(remoteBundleUrl);
+            connection = (HttpURLConnection) (downloadUrl.openConnection());
+            bin = new BufferedInputStream(connection.getInputStream());
+            File downloadFile = new File(getCurrentPackageBundlePath());
+            downloadFile.delete();
+            fos = new FileOutputStream(downloadFile);
+            bout = new BufferedOutputStream(fos, DOWNLOAD_BUFFER_SIZE);
+            byte[] data = new byte[DOWNLOAD_BUFFER_SIZE];
+            int numBytesRead = 0;
+            while ((numBytesRead = bin.read(data, 0, DOWNLOAD_BUFFER_SIZE)) >= 0) {
+                bout.write(data, 0, numBytesRead);
+            }
+        } catch (MalformedURLException e) {
+            throw new CodePushMalformedDataException(remoteBundleUrl, e);
+        } finally {
+            try {
+                if (bout != null) bout.close();
+                if (fos != null) fos.close();
+                if (bin != null) bin.close();
+                if (connection != null) connection.disconnect();
+            } catch (IOException e) {
+                throw new CodePushUnknownException("Error closing IO resources.", e);
+            }
+        }
+    }
+
+    public void clearUpdates() {
+        File statusFile = new File(getStatusFilePath());
+        statusFile.delete();
+        CodePushUtils.deleteDirectoryAtPath(getCodePushPath());
     }
 }

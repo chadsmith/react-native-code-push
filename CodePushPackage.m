@@ -14,7 +14,12 @@ NSString * const UnzippedFolderName = @"unzipped";
 
 + (NSString *)getCodePushPath
 {
-    return [[CodePush getApplicationSupportDirectory] stringByAppendingPathComponent:@"CodePush"];
+    NSString* codePushPath = [[CodePush getApplicationSupportDirectory] stringByAppendingPathComponent:@"CodePush"];
+    if ([CodePush isUsingTestConfiguration]) {
+        codePushPath = [codePushPath stringByAppendingPathComponent:@"TestPackages"];
+    }
+    
+    return codePushPath;
 }
 
 + (NSString *)getDownloadFilePath
@@ -381,7 +386,8 @@ NSString * const UnzippedFolderName = @"unzipped";
                 return [fileName stringByAppendingPathComponent:mainBundlePathInFolder];
             }
         } else if ([[fileName pathExtension] isEqualToString:@"bundle"] ||
-            [[fileName pathExtension] isEqualToString:@"jsbundle"]) {
+            [[fileName pathExtension] isEqualToString:@"jsbundle"] ||
+            [[fileName pathExtension] isEqualToString:@"js"]) {
             return fileName;
         }
     }
@@ -429,7 +435,7 @@ NSString * const UnzippedFolderName = @"unzipped";
                 }
             }
             
-            [[NSFileManager defaultManager] moveItemAtPath:fullFilePath toPath:destFileName error:error];
+            [[NSFileManager defaultManager] copyItemAtPath:fullFilePath toPath:destFileName error:error];
             if (*error) {
                 return;
             }
@@ -470,15 +476,51 @@ NSString * const UnzippedFolderName = @"unzipped";
 {
     NSError *error;
     NSMutableDictionary *info = [self getCurrentPackageInfo:&error];
-    
     if (error) {
         return;
+    }
+    
+    NSString *currentPackageFolderPath = [self getCurrentPackageFolderPath:&error];
+    if (error) {
+        return;
+    }
+    
+    NSError *deleteError;
+    [[NSFileManager defaultManager] removeItemAtPath:currentPackageFolderPath
+                                               error:&deleteError];
+    if (deleteError) {
+        NSLog(@"Error deleting current package contents at %@", currentPackageFolderPath);
     }
     
     [info setValue:info[@"previousPackage"] forKey:@"currentPackage"];
     [info removeObjectForKey:@"previousPackage"];
     
     [self updateCurrentPackageInfo:info error:&error];
+}
+
++ (void)downloadAndReplaceCurrentBundle:(NSString *)remoteBundleUrl
+{
+    NSURL *urlRequest = [NSURL URLWithString:remoteBundleUrl];
+    NSError *error = nil;
+    NSString *downloadedBundle = [NSString stringWithContentsOfURL:urlRequest
+                                                          encoding:NSUTF8StringEncoding
+                                                             error:&error];
+    
+    if (error) {
+        NSLog(@"Error downloading from URL %@", remoteBundleUrl);
+    } else {
+        NSString *currentPackageBundlePath = [self getCurrentPackageBundlePath:&error];
+        [downloadedBundle writeToFile:currentPackageBundlePath
+                           atomically:YES
+                             encoding:NSUTF8StringEncoding
+                                error:&error];
+    }
+}
+
++ (void)clearUpdates
+{
+    [[NSFileManager defaultManager] removeItemAtPath:[self getCodePushPath] error:nil];
+    [[NSFileManager defaultManager] removeItemAtPath:[self getStatusFilePath] error:nil];
 }
 
 @end

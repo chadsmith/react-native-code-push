@@ -1,30 +1,47 @@
-module.exports.request = function request(verb, url, body, callback) {
-    if (typeof body === "function") {
-        callback = body;
-        body = null;
+module.exports = {
+  async request(verb, url, requestBody, callback) {
+    if (typeof requestBody === "function") {
+      callback = requestBody;
+      requestBody = null;
     }
 
     var headers = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
+      "Accept": "application/json",
+      "Content-Type": "application/json"
     };
 
-    if (body && typeof body === "object") {
-        body = JSON.stringify(body);
+    if (requestBody && typeof requestBody === "object") {
+      requestBody = JSON.stringify(requestBody);
     }
 
-    var statusCode;
-
-    fetch(url, {
-        method: verb,
+    try {
+      const response = await fetch(url, {
+        method: getHttpMethodName(verb),
         headers: headers,
-        body: body
-    }).then(function(response) {
-        statusCode = response.status;
-        return response.text();
-    }).then(function(body) {
-        callback(null, {statusCode: statusCode, body: body});
-    }).catch(function(err) {
-        callback(err);
-    });
+        body: requestBody
+      });
+        
+      const statusCode = response.status;
+      const body = await response.text();
+      callback(null, { statusCode, body });
+    } catch (err) {
+      callback(err);
+    }
+  }
+};
+
+function getHttpMethodName(verb) {
+  // Note: This should stay in sync with the enum definition in
+  // https://github.com/Microsoft/code-push/blob/master/sdk/script/acquisition-sdk.ts#L6
+  return [
+    "GET",
+    "HEAD",
+    "POST",
+    "PUT",
+    "DELETE",
+    "TRACE",
+    "OPTIONS",
+    "CONNECT",
+    "PATCH"
+  ][verb];
 }
