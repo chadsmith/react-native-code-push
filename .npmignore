@@ -29,3 +29,10 @@ npm-debug.log
 # Don't publish example apps
 Examples/
 Recipes/
+
+# Don't publish testing code
+bin/
+test/
+
+# Remove after this framework is published on NPM
+code-push-plugin-testing-framework/

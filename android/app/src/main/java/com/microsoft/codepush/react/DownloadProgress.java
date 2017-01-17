@@ -3,24 +3,28 @@ package com.microsoft.codepush.react;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 
-public class DownloadProgress {
-    public long totalBytes;
-    public long receivedBytes;
+class DownloadProgress {
+    private long mTotalBytes;
+    private long mReceivedBytes;
 
     public DownloadProgress (long totalBytes, long receivedBytes){
-        this.totalBytes = totalBytes;
-        this.receivedBytes = receivedBytes;
+        mTotalBytes = totalBytes;
+        mReceivedBytes = receivedBytes;
     }
 
     public WritableMap createWritableMap() {
         WritableMap map = new WritableNativeMap();
-        if (totalBytes < Integer.MAX_VALUE) {
-            map.putInt("totalBytes", (int) totalBytes);
-            map.putInt("receivedBytes", (int) receivedBytes);
+        if (mTotalBytes < Integer.MAX_VALUE) {
+            map.putInt("totalBytes", (int) mTotalBytes);
+            map.putInt("receivedBytes", (int) mReceivedBytes);
         } else {
-            map.putDouble("totalBytes", totalBytes);
-            map.putDouble("receivedBytes", receivedBytes);
+            map.putDouble("totalBytes", mTotalBytes);
+            map.putDouble("receivedBytes", mReceivedBytes);
         }
         return map;
+    }
+
+    public boolean isCompleted() {
+        return mTotalBytes == mReceivedBytes;
     }
 }

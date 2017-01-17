@@ -1,3 +1,5 @@
+const packageJson = require("./package.json");
+
 module.exports = {
   async request(verb, url, requestBody, callback) {
     if (typeof requestBody === "function") {
@@ -5,9 +7,12 @@ module.exports = {
       requestBody = null;
     }
 
-    var headers = {
+    const headers = {
       "Accept": "application/json",
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "X-CodePush-Plugin-Name": packageJson.name,
+      "X-CodePush-Plugin-Version": packageJson.version,
+      "X-CodePush-SDK-Version": packageJson.dependencies["code-push"]
     };
 
     if (requestBody && typeof requestBody === "object") {
@@ -20,7 +25,7 @@ module.exports = {
         headers: headers,
         body: requestBody
       });
-        
+
       const statusCode = response.status;
       const body = await response.text();
       callback(null, { statusCode, body });
